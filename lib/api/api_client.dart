@@ -5,9 +5,13 @@ class ApiClient {
   final Dio _dio = Dio();
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
-  static const String baseUrl = 'http://10.0.0.47:8000/api';
+  // Callback global yang dipanggil ketika server merespon 401 (unauthorized)
+  final void Function()? _onUnauthorized;
 
-  ApiClient() {
+  static const String baseUrl = '10.0.2.2:8000/api';
+
+  ApiClient({void Function()? onUnauthorized})
+      : _onUnauthorized = onUnauthorized {
     _dio.options.baseUrl = baseUrl;
     _dio.options.connectTimeout = const Duration(seconds: 10);
     _dio.options.receiveTimeout = const Duration(seconds: 10);
@@ -31,11 +35,12 @@ class ApiClient {
           return handler.next(options);
         },
         onError: (DioException error, handler) async {
-          if (error.response?.statusCode == 401) {
-            final rememberMe = await isRememberMeActive();
-            if (!rememberMe) {
-              await _storage.delete(key: 'auth_token');
-            }
+          // Jika status 401 (session habis / unauthorized) dan bukan request login,
+          // hapus token dan panggil callback global untuk mengarahkan ke halaman login.
+          if (error.response?.statusCode == 401 &&
+              error.requestOptions.path != '/auth/login') {
+            await clearToken();
+            _onUnauthorized?.call();
           }
           return handler.next(error);
         },

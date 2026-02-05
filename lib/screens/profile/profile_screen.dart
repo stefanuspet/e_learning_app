@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/dashboard_provider.dart';
+import '../../providers/grade_provider.dart';
+import '../../utils/theme.dart';
 import '../login_screen.dart';
+import 'change_password_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -14,10 +18,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Pastikan statistik dashboard & nilai ter-load saat membuka profil
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        final dashboardProvider =
+            Provider.of<DashboardProvider>(context, listen: false);
+        final gradeProvider =
+            Provider.of<GradeProvider>(context, listen: false);
+
+        if (dashboardProvider.stats.isEmpty) {
+          await dashboardProvider.getDashboardData();
+        }
+
+        final stats = gradeProvider.grades['stats'];
+        final hasAverage = stats is Map &&
+            stats['average_grade'] != null &&
+            (stats['total_assignments'] ?? 0) != 0;
+        if (!hasAverage) {
+          await gradeProvider.getGrades();
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final student = authProvider.student;
     final user = authProvider.user;
+    final dashboardProvider = Provider.of<DashboardProvider>(context);
+    final gradeProvider = Provider.of<GradeProvider>(context);
+
+    final attendanceRate =
+        dashboardProvider.stats['attendance_rate']?.toString() ?? '--';
+
+    double? avgGradeValue;
+    final gradesStats = gradeProvider.grades['stats'];
+    if (gradesStats is Map && gradesStats['average_grade'] != null) {
+      final raw = gradesStats['average_grade'];
+      avgGradeValue = raw is num
+          ? raw.toDouble()
+          : double.tryParse(raw.toString());
+    }
+    final averageGradeText =
+        avgGradeValue != null ? avgGradeValue.toStringAsFixed(1) : '--';
 
     return Scaffold(
       appBar: AppBar(
@@ -32,11 +88,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           SingleChildScrollView(
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12.0, vertical: 16.0),
               child: Column(
                 children: [
-                  // Profile Card
+                  // Profile Card (compact, full width)
                   Container(
+                    width: double.infinity,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
@@ -50,62 +108,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     child: Column(
                       children: [
-                        // Blue header
-                        Container(
-                          height: 80,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                              colors: [
-                                Colors.blue.shade500,
-                                Colors.blue.shade600,
-                              ],
-                            ),
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(16),
-                              topRight: Radius.circular(16),
-                            ),
-                          ),
-                        ),
-
                         // Profile content
                         Padding(
                           padding: const EdgeInsets.all(16.0),
                           child: Column(
                             children: [
-                              // Avatar circle that overlaps the blue header
-                              Transform.translate(
-                                offset: const Offset(0, -50),
-                                child: Container(
-                                  width: 100,
-                                  height: 100,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: Colors.white,
-                                      width: 4,
-                                    ),
-                                  ),
-                                  child: CircleAvatar(
-                                    backgroundColor: Colors.blue.shade100,
-                                    child: Icon(
-                                      Icons.person,
-                                      size: 50,
-                                      color: Colors.blue.shade600,
-                                    ),
+                              CircleAvatar(
+                                radius: 30,
+                                backgroundColor:
+                                    AppTheme.primaryColor.withOpacity(0.1),
+                                child: Text(
+                                  (student?.name?.isNotEmpty == true
+                                          ? student!.name[0]
+                                          : (user?.email.isNotEmpty == true
+                                              ? user!.email[0]
+                                              : '?'))
+                                      .toUpperCase(),
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.primaryColor,
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 0),
+                              const SizedBox(height: 8),
 
                               // Student info
                               Text(
                                 student?.name ?? "Student Name",
                                 style: const TextStyle(
-                                  fontSize: 20,
+                                  fontSize: 18,
                                   fontWeight: FontWeight.bold,
+                                  color: AppTheme.textPrimaryColor,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
@@ -114,7 +148,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               Text(
                                 'NISN: ${student?.nisn ?? "-"}',
                                 style: TextStyle(
-                                  color: Colors.grey.shade600,
+                                  fontSize: 13,
+                                  color: AppTheme.textSecondaryColor,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
@@ -123,18 +158,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               Text(
                                 user?.email ?? "email@example.com",
                                 style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 14,
+                                  color: AppTheme.textSecondaryColor,
+                                  fontSize: 13,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
                               ),
 
-                              // Divider and class info
-                              const SizedBox(height: 16),
-                              const Divider(),
-                              const SizedBox(height: 16),
-
+                              const SizedBox(height: 12),
                               Column(
                                 children: [
                                   Text(
@@ -146,33 +177,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    student?.className ?? 'Not Assigned', // Tampilkan kelas dari data siswa
+                                    student?.className ?? 'Not Assigned',
                                     style: const TextStyle(
+                                      fontSize: 14,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ],
-                              ),
-
-                              // Edit profile button
-                              const SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: () {
-                                  // Navigate to profile edit
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blue.shade50,
-                                  foregroundColor: Colors.blue.shade700,
-                                  elevation: 0,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 24,
-                                    vertical: 12,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: const Text('Edit Profile'),
                               ),
                             ],
                           ),
@@ -183,54 +194,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   const SizedBox(height: 24),
 
-                  // Account Settings Section
-                  _buildSettingsSection('Account Settings', [
-                    _buildSettingItem(
-                      Icons.lock_outline,
-                      'Change Password',
-                          () {
-                        // Navigate to change password screen
-                      },
-                    ),
-                    _buildSettingItem(
-                      Icons.notifications_outlined,
-                      'Notification Settings',
-                          () {
-                        // Navigate to notification settings
-                      },
-                    ),
-                    _buildSettingItem(
-                      Icons.language_outlined,
-                      'Language',
-                          () {
-                        // Navigate to language settings
-                      },
-                    ),
-                  ]),
+                  // Stats Section (Attendance & Grades)
+                  _buildStatsSection(
+                    attendanceRate: attendanceRate,
+                    averageGrade: averageGradeText,
+                  ),
 
                   const SizedBox(height: 16),
 
-                  // App Settings Section
-                  _buildSettingsSection('App Settings', [
+                  // Change Password section
+                  _buildSettingsSection('Account', [
                     _buildSettingItem(
-                      Icons.color_lens_outlined,
-                      'Theme',
-                          () {
-                        // Show theme options
-                      },
-                    ),
-                    _buildSettingItem(
-                      Icons.info_outline,
-                      'About',
-                          () {
-                        // Show about dialog
-                      },
-                    ),
-                    _buildSettingItem(
-                      Icons.help_outline,
-                      'Help & Support',
-                          () {
-                        // Navigate to help screen
+                      Icons.lock_outline,
+                      'Change Password',
+                      () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const ChangePasswordScreen(),
+                          ),
+                        );
                       },
                     ),
                   ]),
@@ -291,6 +273,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
           ),
+          if (_isLoading)
+            const Positioned.fill(
+              child: IgnorePointer(
+                child: Center(
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -399,6 +389,131 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // Statistik (absensi & nilai) di profil
+  Widget _buildStatsSection({
+    required String attendanceRate,
+    required String averageGrade,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade200,
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Your Statistics',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: AppTheme.textPrimaryColor,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  icon: Icons.calendar_today,
+                  title: 'Attendance',
+                  value: attendanceRate,
+                  subtitle: 'Kehadiran',
+                  color: AppTheme.primaryColor,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  icon: Icons.grade_outlined,
+                  title: 'Grades',
+                  value: averageGrade,
+                  subtitle: 'Rata-rata nilai',
+                  color: AppTheme.warningColor,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard({
+    required IconData icon,
+    required String title,
+    required String value,
+    required String subtitle,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimaryColor,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppTheme.textSecondaryColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textPrimaryColor,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -7,7 +7,8 @@ plugins {
 
 android {
     namespace = "com.example.e_learning_app"
-    compileSdk = flutter.compileSdkVersion
+    // Override Flutter defaults to satisfy plugin requirements
+    compileSdk = 36
     ndkVersion = "27.0.12077973"
 
     compileOptions {
@@ -24,7 +25,8 @@ android {
         applicationId = "com.example.e_learning_app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // Plugins (e.g. flutter_secure_storage, qr_code_scanner_plus) require at least 24.
+        minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

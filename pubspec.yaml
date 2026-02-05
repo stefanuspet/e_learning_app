@@ -42,7 +42,7 @@ dependencies:
 
   # Local storage
   shared_preferences: ^2.2.0
-  flutter_secure_storage: ^9.0.0 # Untuk menyimpan token dengan aman
+  flutter_secure_storage: ^10.0.0 # Untuk menyimpan token dengan aman
 
   # UI components
   flutter_svg: ^2.0.7
@@ -50,12 +50,15 @@ dependencies:
   shimmer: ^3.0.0 # Untuk loading effect
 
   # Others
-  intl: ^0.18.1 # Untuk format tanggal/waktu
+  intl: ^0.20.2 # Untuk format tanggal/waktu
   url_launcher: ^6.1.12
   path_provider: ^2.1.0
   file_picker: ^10.2.0
 
-  device_info_plus: ^9.0.2
+  device_info_plus: ^12.3.0
+  # QR & Location for attendance
+  geolocator: ^14.0.2
+  qr_code_scanner_plus: ^2.0.14
 
 dev_dependencies:
   flutter_test:
@@ -66,7 +69,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

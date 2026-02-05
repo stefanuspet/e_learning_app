@@ -73,14 +73,11 @@ class GradeProvider with ChangeNotifier {
 
       final result = await _gradeApi.getGradesBySubject(subjectId);
 
-      // Validate result structure
-      if (result != null &&
-          result.containsKey('subject') &&
-          result.containsKey('stats') &&
-          result.containsKey('assignments')) {
+      // Simpan data detail subject apa adanya, validasi minimal
+      if (result != null && result.containsKey('subject')) {
         _subjectGrades = result;
       } else {
-        throw Exception('Invalid data format received from API');
+        throw Exception('Invalid subject data received from API');
       }
 
       _isLoading = false;

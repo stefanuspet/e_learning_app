@@ -51,7 +51,7 @@ class _SplashScreenState extends State<SplashScreen> {
             const SizedBox(height: 24),
             // Nama aplikasi
             const Text(
-              'SchoolHub',
+              'SMK Amaliyah Jakarta',
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,

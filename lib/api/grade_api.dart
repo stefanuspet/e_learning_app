@@ -52,46 +52,22 @@ class GradeApi {
   // Get grades by subject
   Future<Map<String, dynamic>> getGradesBySubject(int subjectId) async {
     try {
-      final response = await _apiClient.dio.get('/grades/subjects/$subjectId');
+      // Menggunakan endpoint baru: /subjects/{subject_id}/detail
+      final response = await _apiClient.dio.get('/subjects/$subjectId/detail');
 
-      if (response.statusCode == 200 && response.data['success']) {
-        // The response is already in the format we expect, so return it directly
-        // Just add some validation to make sure it has the required structure
-        final apiData = response.data['data'];
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final data = response.data['data'];
 
-        if (apiData == null) {
+        if (data == null || data is! Map<String, dynamic>) {
           throw Exception('No data returned from API');
         }
 
-        if (!apiData.containsKey('subject') || !apiData.containsKey('stats') || !apiData.containsKey('assignments')) {
+        if (!data.containsKey('subject')) {
           throw Exception('Invalid data format received from API');
         }
 
-        // Ensure assignments is a Map with the right structure
-        if (!(apiData['assignments'] is Map)) {
-          // If assignments is a List instead of a Map, convert it to the expected structure
-          if (apiData['assignments'] is List) {
-            final List<dynamic> allAssignments = apiData['assignments'] as List;
-            apiData['assignments'] = {
-              'graded': allAssignments.where((a) => a['grade'] != null).toList(),
-              'submitted_not_graded': allAssignments.where((a) => a['grade'] == null && a['submitted_at'] != null).toList(),
-              'not_submitted': allAssignments.where((a) => a['submitted_at'] == null).toList(),
-            };
-          } else {
-            throw Exception('Invalid assignments format received from API');
-          }
-        }
-
-        // Handle 'is_overdue' field in not_submitted assignments
-        if (apiData['assignments']['not_submitted'] is List) {
-          for (var assignment in apiData['assignments']['not_submitted']) {
-            if (assignment.containsKey('is_overdue') && !assignment.containsKey('is_late')) {
-              assignment['is_late'] = assignment['is_overdue'];
-            }
-          }
-        }
-
-        return apiData;
+        // Kembalikan data apa adanya: subject, stats, recent_activities, dll.
+        return data as Map<String, dynamic>;
       } else {
         throw Exception(response.data['message'] ?? 'Failed to get subject grades');
       }

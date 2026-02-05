@@ -9,11 +9,26 @@ class AttendanceApi {
 
   AttendanceApi(this._apiClient);
 
-  Future<void> submitAttendance(String pin) async {
+  Future<void> submitAttendance(
+    String qrToken, {
+    double? latitude,
+    double? longitude,
+  }) async {
     try {
+      final data = <String, dynamic>{
+        // Backend Laravel mengharapkan field 'qr_token'
+        'qr_token': qrToken,
+      };
+
+      // Sertakan lokasi jika tersedia
+      if (latitude != null && longitude != null) {
+        data['latitude'] = latitude;
+        data['longitude'] = longitude;
+      }
+
       final response = await _apiClient.dio.post(
         '/attendance/submit',
-        data: {'pin': pin},
+        data: data,
       );
       _processResponse(response);
     } catch (e) {
@@ -32,10 +47,11 @@ class AttendanceApi {
     }
   }
 
-  Future<AttendanceHistoryResponse> getAttendanceHistoryBySemester(int semesterId) async {
+  Future<AttendanceHistoryResponse> getAttendanceHistoryBySemester(
+      int semesterId) async {
     try {
       final response =
-      await _apiClient.dio.get('/attendance/history/$semesterId');
+          await _apiClient.dio.get('/attendance/history/$semesterId');
       final data = _processResponse(response);
 
       return _parseHistoryResponse(data);
@@ -53,6 +69,27 @@ class AttendanceApi {
       return semestersData
           .map((e) => Semester.fromJson(e as Map<String, dynamic>))
           .toList();
+    } catch (e) {
+      throw Exception(_handleError(e));
+    }
+  }
+
+  // Detail semester: GET /semesters/{id}
+  Future<Semester> getSemesterDetail(int semesterId) async {
+    try {
+      final response = await _apiClient.dio.get('/semesters/$semesterId');
+      final data = _processResponse(response);
+
+      // Beberapa API mungkin mengembalikan langsung object semester,
+      // atau membungkusnya dalam key 'semester'
+      if (data is Map<String, dynamic>) {
+        if (data.containsKey('semester')) {
+          return Semester.fromJson(
+              data['semester'] as Map<String, dynamic>);
+        }
+        return Semester.fromJson(data);
+      }
+      throw Exception('Invalid semester data format');
     } catch (e) {
       throw Exception(_handleError(e));
     }

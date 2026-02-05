@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../providers/attendance_provider.dart';
 import '../../utils/theme.dart';
 import 'attendance_history_screen.dart';
+import 'attendance_qr_scanner_screen.dart';
 
 class AttendanceFormScreen extends StatefulWidget {
   const AttendanceFormScreen({Key? key}) : super(key: key);
@@ -32,11 +34,32 @@ class _AttendanceFormScreenState extends State<AttendanceFormScreen> {
         _successMessage = null;
       });
 
+      double? latitude;
+      double? longitude;
+
+      // Ambil lokasi terlebih dahulu
+      try {
+        final position = await _determinePosition();
+        latitude = position.latitude;
+        longitude = position.longitude;
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = e.toString();
+          });
+        }
+        return;
+      }
+
       try {
         final attendanceProvider =
             Provider.of<AttendanceProvider>(context, listen: false);
-        final success = await attendanceProvider
-            .submitAttendance(_pinController.text.trim());
+        final success = await attendanceProvider.submitAttendance(
+          _pinController.text.trim(),
+          latitude: latitude,
+          longitude: longitude,
+        );
 
         if (mounted) {
           setState(() {
@@ -59,6 +82,49 @@ class _AttendanceFormScreenState extends State<AttendanceFormScreen> {
         }
       }
     }
+  }
+
+  Future<void> _scanQrCode() async {
+    final result = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AttendanceQrScannerScreen(),
+      ),
+    );
+
+    if (result != null && result.isNotEmpty && mounted) {
+      setState(() {
+        _pinController.text = result;
+      });
+      // Opsional: langsung submit setelah scan
+      // _submitAttendance();
+    }
+  }
+
+  Future<Position> _determinePosition() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      throw Exception(
+          'Location services are disabled. Please enable location.');
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        throw Exception(
+            'Location permission denied. Please allow location access.');
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      throw Exception(
+          'Location permission permanently denied. Please enable it in settings.');
+    }
+
+    return Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
   }
 
   @override
@@ -115,6 +181,18 @@ class _AttendanceFormScreenState extends State<AttendanceFormScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
+
+                // Scan QR button
+                OutlinedButton.icon(
+                  onPressed: _isLoading ? null : _scanQrCode,
+                  icon: const Icon(Icons.qr_code_scanner),
+                  label: const Text('Scan QR Attendance'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    side: BorderSide(color: AppTheme.primaryColor),
+                  ),
+                ),
+                const SizedBox(height: 24),
 
                 // Error message
                 if (_errorMessage != null)

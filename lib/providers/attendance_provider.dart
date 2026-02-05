@@ -79,11 +79,19 @@ class AttendanceProvider with ChangeNotifier {
     }
   }
 
-  /// Submit attendance with a PIN
-  Future<bool> submitAttendance(String pin) async {
+  /// Submit attendance with a PIN (dan lokasi opsional)
+  Future<bool> submitAttendance(
+    String pin, {
+    double? latitude,
+    double? longitude,
+  }) async {
     _setLoading(true);
     try {
-      await _attendanceApi.submitAttendance(pin);
+      await _attendanceApi.submitAttendance(
+        pin,
+        latitude: latitude,
+        longitude: longitude,
+      );
       return true;
     } catch (e, stack) {
       debugPrint("submitAttendance ERROR => $e\n$stack");

@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:geolocator/geolocator.dart';
 import '../providers/auth_provider.dart';
 import '../providers/notification_provider.dart';
 import '../providers/dashboard_provider.dart';
-import '../screens/attendance/attendance_form_screen.dart';
-import '../screens/attendance/attendance_history_screen.dart';
-import '../screens/grades/grade_list_screen.dart';
+import '../providers/attendance_provider.dart';
+import '../screens/attendance/attendance_qr_scanner_screen.dart';
 import '../screens/notifications/notification_screen.dart';
 import '../screens/profile/profile_screen.dart';
+import '../screens/schedule/schedule_screen.dart';
+import '../screens/subjects/subject_list_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -140,17 +142,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               _buildOverviewStats(stats),
               const SizedBox(height: 24),
 
-              // My Subjects Section
-              _buildSubjectsSection(subjects, context),
-              const SizedBox(height: 24),
-
-              // Upcoming Assignments Section
-              _buildUpcomingAssignmentsSection(upcomingAssignments, context),
-              const SizedBox(height: 24),
-
-              // Recent Materials Section
-              _buildRecentMaterialsSection(recentMaterials, context),
-              const SizedBox(height: 24),
+              // Short Upcoming Assignments Section (max 3 items)
+              _buildUpcomingAssignmentsPreview(
+                upcomingAssignments,
+                context,
+              ),
             ],
           ),
         ),
@@ -379,6 +375,66 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
       ],
+      );
+    }
+
+  // Short preview for upcoming assignments on dashboard (max 3 items)
+  Widget _buildUpcomingAssignmentsPreview(
+    List<dynamic> assignments,
+    BuildContext context,
+  ) {
+    // Batasi hanya 3 item terdekat
+    final List<dynamic> limitedAssignments =
+        assignments.length > 3 ? assignments.sublist(0, 3) : assignments;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.assignment_outlined,
+                  color: Colors.orange.shade600,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Upcoming Assignments',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/assignments');
+              },
+              child: const Text('See all'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (limitedAssignments.isEmpty)
+          _buildEmptyState(
+            'No upcoming assignments',
+            'You\'re all caught up!',
+          )
+        else
+          Column(
+            children: List.generate(
+              limitedAssignments.length,
+              (index) => _buildAssignmentCard(
+                context,
+                limitedAssignments[index],
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -426,70 +482,230 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // Bottom Navigation Bar
   Widget _buildBottomNavigationBar(BuildContext context) {
-    return BottomAppBar(
-      height: 109,
-      elevation: 8,
+    // Modern floating bottom bar with central circular Attendance button
+    return SizedBox(
+      height: 110,
+      child: Stack(
+        alignment: Alignment.bottomCenter,
+        children: [
+          // Background pill
+          Positioned(
+            bottom: 20,
+            left: 16,
+            right: 16,
+            child: Container(
+              height: 60,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(32),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildNavItem(
+                    context: context,
+                    icon: Icons.home_outlined,
+                    label: 'Dashboard',
+                    onTap: () {
+                      // Already on dashboard; keep for future behavior.
+                    },
+                  ),
+                  _buildNavItem(
+                    context: context,
+                    icon: Icons.menu_book_outlined,
+                    label: 'Subjects',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SubjectListScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 48), // space under center button
+                  _buildNavItem(
+                    context: context,
+                    icon: Icons.schedule_outlined,
+                    label: 'Schedule',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ScheduleScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildNavItem(
+                    context: context,
+                    icon: Icons.person_outline,
+                    label: 'Profile',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ProfileScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Center circular Attendance button
+          Positioned(
+            bottom: 36,
+            child: GestureDetector(
+              onTap: _handleQrAttendance,
+              child: Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade600,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.blue.shade600.withOpacity(0.35),
+                      blurRadius: 14,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.qr_code_scanner,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(24),
+      onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            _buildQuickAction(
-              context,
-              'Attendance',
-              Icons.calendar_today,
-                  () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const AttendanceFormScreen(),
-                  ),
-                );
-              },
+            Icon(
+              icon,
+              size: 22,
+              color: Colors.grey.shade700,
             ),
-            _buildQuickAction(
-              context,
-              'History',
-              Icons.history,
-                  () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const AttendanceHistoryScreen(),
-                  ),
-                );
-              },
-            ),
-            _buildQuickAction(
-              context,
-              'Grades',
-              Icons.assignment,
-                  () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const GradeListScreen(),
-                  ),
-                );
-              },
-            ),
-            _buildQuickAction(
-              context,
-              'Profile',
-              Icons.person,
-                  () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ProfileScreen(),
-                  ),
-                );
-              },
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey.shade700,
+              ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _handleQrAttendance() async {
+    // Buka scanner dan tunggu hasil QR
+    final qrToken = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AttendanceQrScannerScreen(),
+      ),
+    );
+
+    if (!mounted || qrToken == null || qrToken.isEmpty) return;
+
+    // Ambil lokasi saat ini
+    Position position;
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        throw Exception('Location services are disabled.');
+      }
+
+      LocationPermission permission =
+          await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        throw Exception('Location permission denied.');
+      }
+
+      position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Kirim absensi ke API
+    try {
+      final attendanceProvider =
+          Provider.of<AttendanceProvider>(context, listen: false);
+      final success = await attendanceProvider.submitAttendance(
+        qrToken,
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
+
+      if (!mounted) return;
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Absensi berhasil dicatat.'),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              attendanceProvider.error ?? 'Gagal mencatat absensi.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   // Helper widget for stat cards

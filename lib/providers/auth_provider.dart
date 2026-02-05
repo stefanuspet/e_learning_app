@@ -44,6 +44,11 @@ class AuthProvider with ChangeNotifier {
       _error = null;
       final data = await _authApi.login(email, password);
 
+      // Simpan informasi user dari response login jika tersedia
+      if (data is Map<String, dynamic> && data['user'] != null) {
+        _user = User.fromJson(data['user'] as Map<String, dynamic>);
+      }
+
       _rememberMe = rememberMe;
       await _authApi.apiClient.saveRememberMe(rememberMe);
 
@@ -77,11 +82,27 @@ class AuthProvider with ChangeNotifier {
 
       _student = Student.fromJson(data);
 
-      _user = User(
-        id: data['id'], // <- GANTI disini
-        email: data['email'],
-        role: 'siswa',
-      );
+      // Perbarui data user jika tersedia di response profile
+      if (data is Map<String, dynamic> && data['user'] != null) {
+        _user = User.fromJson(data['user'] as Map<String, dynamic>);
+      } else {
+        // Fallback: gunakan field langsung jika ada, atau pertahankan data user sebelumnya
+        final updatedId = data['id'] ?? _user?.id;
+        final updatedEmail = data['email'] ?? _user?.email;
+
+        if (updatedId != null && updatedEmail != null) {
+          _user = User(
+            id: updatedId,
+            email: updatedEmail,
+            role: data['role'] ?? _user?.role ?? 'siswa',
+            studentId: data['student_id'] ?? _user?.studentId,
+            name: data['name'] ?? _user?.name,
+            nisn: data['nisn'] ?? _user?.nisn,
+            emailVerifiedAt:
+                data['email_verified_at'] ?? _user?.emailVerifiedAt,
+          );
+        }
+      }
 
       _status = AuthStatus.authenticated;
       notifyListeners();
@@ -92,6 +113,29 @@ class AuthProvider with ChangeNotifier {
       await _authApi.apiClient.clearToken();
       _status = AuthStatus.unauthenticated;
       notifyListeners();
+    }
+  }
+
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String newPasswordConfirmation,
+  }) async {
+    try {
+      _error = null;
+      await _authApi.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+        newPasswordConfirmation: newPasswordConfirmation,
+      );
+      return true;
+    } catch (e) {
+      var message = e.toString();
+      if (message.startsWith('Exception: ')) {
+        message = message.substring('Exception: '.length);
+      }
+      _error = message;
+      return false;
     }
   }
 }

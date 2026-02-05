@@ -82,18 +82,31 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   // Logo and title
                   Column(
-                    children: [
-                      Image.asset(
-                        'assets/images/logo.png', // Make sure to add this image to your assets
+                    children: const [
+                      // Logo
+                      Image(
+                        image: AssetImage('assets/images/logo.png'),
                         width: 80,
                         height: 80,
                       ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'SchoolHub Login',
+                      SizedBox(height: 16),
+                      // School name
+                      Text(
+                        'SMK Amaliyah Jakarta',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.w800,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 4),
+                      // Sub title "Login"
+                      Text(
+                        'Login',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey,
                         ),
                         textAlign: TextAlign.center,
                       ),
