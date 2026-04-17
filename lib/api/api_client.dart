@@ -8,7 +8,7 @@ class ApiClient {
   // Callback global yang dipanggil ketika server merespon 401 (unauthorized)
   final void Function()? _onUnauthorized;
 
-  static const String baseUrl = '10.0.2.2:8000/api';
+  static const String baseUrl = 'http://10.0.2.2:8000/api';
 
   ApiClient({void Function()? onUnauthorized})
       : _onUnauthorized = onUnauthorized {
